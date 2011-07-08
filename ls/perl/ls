@@ -44,7 +44,7 @@ if ($argv_len eq 0) {
         push( @in_argv, $dir );
 }
 foreach $arg (@in_argv) {
-    print "$arg :\n" if ($argv_len > 1 && (-d $arg));
+    print "$arg:\n" if ($argv_len > 1 && (-d $arg));
     $dir = $arg;
 
     my $len = 0;
@@ -87,10 +87,8 @@ foreach $arg (@in_argv) {
 
 
     foreach $f ( sort keys %files ) {
-        if ( -d $f ) {
-            $complete_dir = "$dir/$f";
-        }
-        elsif ( -f $f ) {
+        $complete_dir = "$dir/$f";
+        if ( -f $f ) {
             $complete_dir = "$f";
         }
         my ( $dev, $inode, $mode, $nlink, $uid, $gid, $rdev, $size, $atime,
@@ -104,25 +102,33 @@ foreach $arg (@in_argv) {
         $gid_len = length( $name_gid ) if $gid_len < length( $name_gid );
 
         if ( $format =~ /a/ ) {
-            if ( $width < length ("$complete_dir")) {
-                $width = length ("$complete_dir");
+            if ( $size eq 0 ) {
+                $size_full += 0; 
             }
-        }
-        else {
-            if ( $complete_dir =~ /^[^.]/ ) {
-                if ( $width < length ("$complete_dir")) {
-                    $width = length ("$complete_dir");
+            elsif ( 0 < $size && $size <= 4096 ) {
+                $size_full += 4; 
+            }
+            else {
+                my $quoti;  # 몫
+                my $extra;  #나머지
+                $quoti = int ($size / $blksize);
+                $extra = $size % $blksize;
+
+                if ($extra) {
+                    $size_full += ($quoti * 4) + 4; 
+                }
+                else {
+                    $size_full += ($quoti * 4); 
                 }
             }
         }
-
-        if ( $format =~ /l/ ) {
-            if ( $format =~ /a/ ) {
+        else {
+            if ( $f =~ /^[^.]/) {
                 if ( 0 < $size && $size <= 4096 ) {
                     $size_full += 4; 
                 }
                 else {
-                    my $quoti;  # 몫
+                    my $quoti;  #몫
                     my $extra;  #나머지
                     $quoti = int ($size / $blksize);
                     $extra = $size % $blksize;
@@ -132,26 +138,6 @@ foreach $arg (@in_argv) {
                     }
                     else {
                         $size_full += ($quoti * 4); 
-                    }
-                }
-            }
-            else {
-                if ( $f =~ /^[^.]/) {
-                    if ( 0 < $size && $size <= 4096 ) {
-                        $size_full += 4; 
-                    }
-                    else {
-                        my $quoti;  #몫
-                        my $extra;  #나머지
-                        $quoti = int ($size / $blksize);
-                        $extra = $size % $blksize;
-
-                        if ($extra) {
-                            $size_full += ($quoti * 4) + 4; 
-                        }
-                        else {
-                            $size_full += ($quoti * 4); 
-                        }
                     }
                 }
             }
@@ -170,10 +156,8 @@ foreach $arg (@in_argv) {
 
 
     foreach $f ( sort keys %files ) {
-        if ( -d $f ) {
-            $complete_dir = "$dir/$f";
-        }
-        elsif ( -f $f ) {
+        $complete_dir = "$dir/$f";
+        if ( -f $f ) {
             $complete_dir = "$f";
         }
 
@@ -196,19 +180,18 @@ foreach $arg (@in_argv) {
         push (@mode_print, cat_mode($mode));
 
         if( $format eq 'l' ) {
+            $width = length( $f );
             if ( $f =~ /^[^.]/) {
                 printf "%s%s%s%s ", @mode_print;
                 printf "%${nlink_len}d ", $nlink;
-                printf "%${uid_len}s ", $name_uid;
-                printf "%${gid_len}s ", $name_gid;
+                printf "%-${uid_len}s ", $name_uid;
+                printf "%-${gid_len}s ", $name_gid;
                 printf "%${file_len}d ", $files{$f}->[0];
                 printf "%04d-%02d-%02d %02d:%02d ",
                        $year+1900, $mon+1, $mday, $hour, $min;
 
                 if ( -d $f ) {
-                    print color 'bold blue';
                     printf "%-${width}s\n", $f; 
-                    print color 'reset';
                 }
                 else {
                     printf "%-${width}s\n", $f; 
@@ -216,50 +199,44 @@ foreach $arg (@in_argv) {
             }
         }
         elsif ( $format eq 'a' ) {
+            $width = length( $f );
             if ( -d $f ) {
-                print color 'bold blue';
-                printf "%-${width}s", $f; 
-                print color 'reset';
+                printf "%-${width}s\n", $f; 
             }
             else {
-                printf "%-${width}s", $f; 
+                printf "%-${width}s\n", $f; 
             }
-
-            print "\n";
         }
         elsif ( $format eq 'la' ){
+            $width = length( $f );
             printf "%s%s%s%s ", @mode_print;
             printf "%${nlink_len}d ", $nlink;
-            printf "%${uid_len}s ", $name_uid;
-            printf "%${gid_len}s ", $name_gid;
+            printf "%-${uid_len}s ", $name_uid;
+            printf "%-${gid_len}s ", $name_gid;
             printf "%${file_len}d ", $files{$f}->[0];
             printf "%04d-%02d-%02d %02d:%02d ",
                    $year+1900, $mon+1, $mday, $hour, $min;
 
             if ( -d $f ) {
-                print color 'bold blue';
-                printf "%-${width}s", $f; 
-                print color 'reset';
+                printf "%-${width}s\n", $f; 
             }
             else {
-                printf "%-${width}s", $f; 
+                printf "%-${width}s\n", $f; 
             }
         }
         else {
+            $width = length( $f );
             if ( $f =~ /^[^.]/)
             {
                 if ( -d $f ) {
-                    print color 'bold blue';
-                    printf "[%-${width}s]", $f; 
-                    print color 'reset';
+                    printf "%-${width}s\n", $f; 
                 }
                 else {
-                printf "[%-${width}s]", $f; 
+                printf "%-${width}s\n", $f; 
                 }
             }
         }
     }
-    print "\n";
 
     print "\n" unless ($argv_count eq $#in_argv);
     $argv_count++;
