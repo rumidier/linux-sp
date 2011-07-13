@@ -1,278 +1,166 @@
 #!/usr/bin/env perl 
 
+use 5.010;
 use strict;
 use warnings;
-use Term::ANSIColor;
-use 5.010;
+use utf8;
+use Encode qw(encode_utf8);
+use Getopt::Long qw(:config bundling);
 
-my $dir = '.';
-my $format = 'w';
+use Const::Fast;
+use File::Basename;
+use DateTime;
+use File::Slurp;
+use File::Spec::Functions;
+use File::stat;
 
-my $arg;
-my @in_argv;
-foreach $arg ( @ARGV ) {
-    if( $arg =~ /^-/ ) {
-        if( $arg =~ /^-l$/ ) {
-            if ($format eq 'a') {
-                $format = 'la';
-            }
-            else {
-                $format = 'l';
-            }
-        }
-        elsif( $arg =~ /^-a$/ ) {
-            if ($format eq 'l') {
-                $format = 'la';
-            }
-            else {
-                $format = 'a';
-            }
-        }
-        elsif ( $arg =~ /(la)|(al)/ ) {
-            $format = 'la';
-        }
+
+const my $MODE_FILE => 1;
+const my $MODE_DIR  => 0;
+
+my $long = 0;
+my $all = 0;
+
+GetOptions (
+    'l' => \$long,
+    'a' => \$all,
+);
+
+my @in_dirs;
+my @in_files;
+
+
+for (sort @ARGV)
+{
+    (-d $_) ? push @in_dirs, $_ 
+  : (-f $_) ? push @in_files, $_
+  : warn encode_utf8("ls:${_}에 접근할 수 없습니다.: "), "$!\n";
+  ;
+}
+push @in_dirs, ('.') unless @ARGV;
+
+ls_file($MODE_FILE, @in_files);
+
+print "\n" if @in_files && @in_dirs;
+
+if (@in_dirs > 1) {
+    for (my $i = 0; $i < @in_dirs; ++$i) {
+        say "$in_dirs[$i]:";
+        ls_dir($in_dirs[$i]);
+        print "\n" unless $i == $#in_dirs;
     }
-    else {
-        push( @in_argv, $arg );
-    }
-
+}
+elsif (@in_dirs eq 1) {
+    say "@{in_dirs}:" if @in_files;
+    ls_dir(@in_dirs);
 }
 
-my $argv_count = 0;
-my $argv_len = @in_argv;
-if ($argv_len eq 0) {
-        push( @in_argv, $dir );
-}
-foreach $arg (@in_argv) {
-    print "$arg:\n" if ($argv_len > 1 && (-d $arg));
-    $dir = $arg;
+sub ls_file {
+    my $mode = shift;
+    my @files = @_;
 
-    my $len = 0;
-    my %files;
-    my @file;
-    my $f;
+    return unless @files;
 
-    (-d $dir) ? opendir DIR, $dir :
-    (-f $dir) ? push ( @file, $dir ) :
-    die "ls: $dir에 접근할 수 없습니다.: $!\n";
-#opendir DIR, $dir or die "ls: $dir에 접근할 수 없습니다.: $!\n";
-
-    if ( -d $dir ) {
-        foreach( readdir(DIR) ) {
-            push ( @file, $_ );
-            $f = "$dir/$_";
-            my( $size, $mtime ) = ( stat($f) )[7,9];
-            $files{$_} = [ $size, $mtime ];
-
-            ($len = length) if ( length($_) > $len );
+    my $max_link = 0; #link count
+        my $max_size = 0; #size num
+        for my $file ( @files ) {
+            my $st = lstat($file);
+            $max_link = $st->nlink if $st->nlink > $max_link;
+            $max_size = $st->size if $st ->size > $max_size;
         }
-        closedir DIR;
-    }
-    elsif ( -f $dir ) {
-        $f = "$dir";
-        my( $size, $mtime ) = ( stat($f) )[7,9];
-        $files{$f} = [ $size, $mtime ];
 
-        $len = length ($f);
-    }
-
-    my $width = 0;
-    my $nlink_len = 0;
-    my $file_len = 0;
+    my $link_len = length($max_link);
+    my $size_len = length($max_size);
     my $uid_len = 0;
     my $gid_len = 0;
-    my $colCount = 0;
-    my $size_full = 0;
-    my $complete_dir;
 
+    for my $file ( sort @files ) {
+            my $st = lstat($file);
 
-    foreach $f ( sort keys %files ) {
-        $complete_dir = "$dir/$f";
-        if ( -f $f ) {
-            $complete_dir = "$f";
-        }
-        my ( $dev, $inode, $mode, $nlink, $uid, $gid, $rdev, $size, $atime,
-                $mtime, $ctime, $blksize, $blocks) = stat(
-                    "$complete_dir" );
-        my $name_uid = getpwuid ( $uid );
-        my $name_gid = getpwuid ( $gid );
-
-        $nlink_len = length( $nlink ) if $nlink_len < length( $nlink );
-        $uid_len = length( $name_uid ) if $uid_len < length( $name_uid );
-        $gid_len = length( $name_gid ) if $gid_len < length( $name_gid );
-
-        if ( $format =~ /a/ ) {
-            if ( $size eq 0 ) {
-                $size_full += 0; 
-            }
-            elsif ( 0 < $size && $size <= 4096 ) {
-                $size_full += 4; 
-            }
-            else {
-                my $quoti;  # 몫
-                my $extra;  #나머지
-                $quoti = int ($size / $blksize);
-                $extra = $size % $blksize;
-
-                if ($extra) {
-                    $size_full += ($quoti * 4) + 4; 
-                }
-                else {
-                    $size_full += ($quoti * 4); 
-                }
-            }
-        }
-        else {
-            if ( $f =~ /^[^.]/) {
-                if ( 0 < $size && $size <= 4096 ) {
-                    $size_full += 4; 
-                }
-                else {
-                    my $quoti;  #몫
-                    my $extra;  #나머지
-                    $quoti = int ($size / $blksize);
-                    $extra = $size % $blksize;
-
-                    if ($extra) {
-                        $size_full += ($quoti * 4) + 4; 
-                    }
-                    else {
-                        $size_full += ($quoti * 4); 
-                    }
-                }
-            }
-        }
-
-        if ( $format =~ /a/ ) {
-            $file_len = length( $files{$f}->[0] ) if $file_len < length( $files{$f}->[0] );
-        }
-        else {
-            if ( $f =~ /^[^.]/) {
-                $file_len = length( $files{$f}->[0] ) if $file_len < length( $files{$f}->[0] );
-            }
-        }
-    }
-    print "합계 $size_full\n" if ($format =~ /l/ && (-d $dir));
-
-
-    foreach $f ( sort keys %files ) {
-        $complete_dir = "$dir/$f";
-        if ( -f $f ) {
-            $complete_dir = "$f";
-        }
-
-        my ( $dev, $inode, $mode, $nlink, $uid, $gid, $rdev, $size, $atime,
-                $mtime, $ctime, $blksize, $blocks) = stat( "$complete_dir" );
-        my $name_uid = getpwuid ( $uid );
-        my $name_gid = getpwuid ( $gid );
-        my( $sec, $min, $hour, $mday, $mon, $year ) = localtime(
-                $files{$f}->[1] );
-        $mode = sprintf "%o", $mode & 07777;
-        my @mode_print;
-
-        if (-d "$complete_dir") {
-            push( @mode_print, "d" )
-        }
-        else {
-            push( @mode_print, "-" );
-        }
-
-        push (@mode_print, cat_mode($mode));
-
-        if( $format eq 'l' ) {
-            $width = length( $f );
-            if ( $f =~ /^[^.]/) {
-                printf "%s%s%s%s ", @mode_print;
-                printf "%${nlink_len}d ", $nlink;
-                printf "%-${uid_len}s ", $name_uid;
-                printf "%-${gid_len}s ", $name_gid;
-                printf "%${file_len}d ", $files{$f}->[0];
-                printf "%04d-%02d-%02d %02d:%02d ",
-                       $year+1900, $mon+1, $mday, $hour, $min;
-
-                if ( -d $f ) {
-                    printf "%-${width}s\n", $f; 
-                }
-                else {
-                    printf "%-${width}s\n", $f; 
-                }
-            }
-        }
-        elsif ( $format eq 'a' ) {
-            $width = length( $f );
-            if ( -d $f ) {
-                printf "%-${width}s\n", $f; 
-            }
-            else {
-                printf "%-${width}s\n", $f; 
-            }
-        }
-        elsif ( $format eq 'la' ){
-            $width = length( $f );
-            printf "%s%s%s%s ", @mode_print;
-            printf "%${nlink_len}d ", $nlink;
-            printf "%-${uid_len}s ", $name_uid;
-            printf "%-${gid_len}s ", $name_gid;
-            printf "%${file_len}d ", $files{$f}->[0];
-            printf "%04d-%02d-%02d %02d:%02d ",
-                   $year+1900, $mon+1, $mday, $hour, $min;
-
-            if ( -d $f ) {
-                printf "%-${width}s\n", $f; 
-            }
-            else {
-                printf "%-${width}s\n", $f; 
-            }
-        }
-        else {
-            $width = length( $f );
-            if ( $f =~ /^[^.]/)
-            {
-                if ( -d $f ) {
-                    printf "%-${width}s\n", $f; 
-                }
-                else {
-                printf "%-${width}s\n", $f; 
-                }
-            }
-        }
+             $uid_len = length((getpwuid($st->uid))[0]) if length((getpwuid($st->uid))[0]) > $uid_len;
+             $gid_len = length((getgrgid($st->gid))[0]) if length((getgrgid($st->uid))[0]) > $gid_len;
     }
 
-    print "\n" unless ($argv_count eq $#in_argv);
-    $argv_count++;
+    for my $file ( sort @files ) {
+        my $printed_file = ($mode == $MODE_DIR) ? basename($file) : $file;
+        if ($long) {
+            my $st = lstat($file);
+
+            chomp( my $tz = read_file(catfile('/', 'etc', 'timezone')) );
+            my $dt = DateTime->from_epoch(
+                epoch     => $st->mtime,
+                time_zone => $tz,
+            );
+
+            my $type = (-l $file) ? 'l'
+                     : (-d $file) ? 'd'
+                     :              '-'
+                     ;
+
+            if ($type eq 'l') {
+                $printed_file .= ' -> ' . readlink $file;
+            }
+
+            printf(
+                "%s%9s %${link_len}d %-${uid_len}s %-${gid_len}s %${size_len}d %s %02d:%02d %s\n",
+                $type,
+                get_mode($st->mode),
+                $st->nlink,
+                (getpwuid($st->uid))[0],
+                (getgrgid($st->gid))[0],
+                $st->size,
+                $dt->ymd,
+                $dt->hour,
+                $dt->minute,
+                $printed_file,
+            );
+        }
+        else {
+            say $printed_file;
+        }
+    }
 }
 
-sub cat_mode {
-    my @buf_mode;
-    my $buf = shift;
+sub ls_dir {
+    my $dir = shift;
 
-    for ($buf =~ /\d{1,1}/g){
-        if ($_ == 1) {
-            push( @buf_mode, "--x" );
-        }
-        elsif ($_ == 2) {
-            push( @buf_mode, "-w-" );
-        }
-        elsif ($_ == 3) {
-            push( @buf_mode, "-wx" );
-        }
-        elsif ($_ == 4) {
-            push( @buf_mode, "r--");
-        }
-        elsif ($_ == 5) {
-            push( @buf_mode, "r-x");
-        }
-        elsif ( $_ == 6) {
-            push( @buf_mode, "rw-");
-        }
-        elsif ($_ == 7) {
-            push( @buf_mode, "rwx");
-        }
-        else
-        {
-            push( @buf_mode, "---");
-        }
+    my @files;
+    if ($all) {
+        @files = read_dir( $dir, keep_dot_dot => 1 );
     }
+    else {
+        @files = grep { /^[^.]/ } read_dir($dir);
+    }
+    my $blk_size = 0;
+    for my $file ( @files ) {
+        my $st = lstat( catfile($dir, $file) );
+        $blk_size += (int($st->size / 4096) + ($st->size % 4096 ? 1 : 0)) * (4096 / 1024) ;
+    }
+    say encode_utf8("합계 $blk_size") if $long;
 
-    return @buf_mode;
+    ls_file( $MODE_DIR, map catfile($dir, $_), @files );
+}
+
+sub get_mode {
+    my $mode = shift;
+
+    my $u = ($mode & 00700) >> 6;
+    my $g = ($mode & 00070) >> 3;
+    my $o = ($mode & 00007);
+
+    return sprintf(
+        '%s' x 9,
+
+        ($u & 4) ? 'r' : '-',
+        ($u & 2) ? 'w' : '-',
+        ($u & 1) ? 'x' : '-',
+
+        ($g & 4) ?  'r' : '-',
+        ($g & 2) ?  'w' : '-',
+        ($g & 1) ?  'x' : '-',
+
+        ($o & 4) ?  'r' : '-',
+        ($o & 2) ?  'w' : '-',
+        ($o & 1) ?  'x' : '-',
+    );
 }
