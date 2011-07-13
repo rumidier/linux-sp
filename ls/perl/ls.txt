@@ -1,0 +1,121 @@
+## 파일명
+### ls.pl : ls (-a -l -al) 구현
+
+
+## 개요
+    rumidier@rumidier$ ./ls
+    ls
+    ls.pl
+    ls.txt
+    test.pl
+    
+    rumidier@rumidier$ ./ls -a
+    .
+    ..
+    .ls.swp
+    .ls.txt.swp
+    ls
+    ls.pl
+    ls.txt
+    test.pl
+    
+    rumidier@rumidier$ ./ls -l
+    합계 500
+    -rwxr-xr-x 1 rumidier rumidier   3811 2011-07-13 14:15 ls
+    -rwxr-xr-x 1 rumidier rumidier   3291 2011-07-12 16:31 ls.pl
+    -rw-r--r-- 1 rumidier rumidier      9 2011-07-13 14:47 ls.txt
+    -rw-r--r-- 1 rumidier rumidier 498166 2011-07-12 20:04 test.pl
+    
+    rumidier@rumidier$ ./ls -al
+    합계 556
+    drwxr-xr-x 2 rumidier rumidier   4096 2011-07-13 14:47 .
+    drwxr-xr-x 4 rumidier rumidier   4096 2011-07-13 14:47 ..
+    -rw-r--r-- 1 rumidier rumidier  36864 2011-07-13 14:15 .ls.swp
+    -rw------- 1 rumidier rumidier  12288 2011-07-13 14:48 .ls.txt.swp
+    -rwxr-xr-x 1 rumidier rumidier   3811 2011-07-13 14:15 ls
+    -rwxr-xr-x 1 rumidier rumidier   3291 2011-07-12 16:31 ls.pl
+    -rw-r--r-- 1 rumidier rumidier      9 2011-07-13 14:47 ls.txt
+    -rw-r--r-- 1 rumidier rumidier 498166 2011-07-12 20:04 test.pl
+
+
+## 사용된 모듈
+### use Getopt::Long qw(:config bundling);
+    :config bundling
+    command line (@ARGV) 에서 '-', '--' 옵션을 찾는다
+    bundling을 사용함으로써 -var 옵션은 -v -a -r 로 긴 옵션을 분류해서 사용할수 있게 한다.
+
+    use Const::Fast;
+    usage
+    use Const::Fast;
+    const my $foo => 'a scalar value';
+    const my @bar => qw/a list value/;
+    const my %buz => (a => 'hash', of => 'something');
+    변하지 말아야 될 값을 지정하고 읽기만 가능하다.
+
+### use DateTime;
+    구성 요소 대신에 epoch을 사용하여 새로운 DateTime 오브젝트를 구성한다 
+    
+### use Encode qw(encode_utf8);
+    Perl 내에서의 인코드 디코드 기능 추가
+    
+### use File::Basename;
+    운영체제에 따른 경로 설정을 반환한다.
+    basename, fileparse, dirname
+    basename : 파일최종 경로 반환
+    fileparse : 파일 경로별로 분할 하여 반환
+    dirname : 디렉토리 (파일제외)만 반환
+    
+### use File::Slurp;
+    파일을 간편하고 효율적이게 읽고/쓰고/수정할수 있게 한다.
+
+   # read_file
+	* binmode
+	* array_ref
+	* chomp
+	* scalar_ref
+	* buf_ref
+	* blk_size
+	* err_mode 
+    
+    # write_file
+	* binmode
+	* perms
+	* buf_ref
+	* atomic
+	* append
+	* no_clobber
+	* err_mode 
+    
+    # overwrite_file
+    # append_file
+    # prepend_file
+    # edit_file, edit_file_lines
+    # read_dir
+    	* err_mode
+    	* keep_dot_dot
+    	* prefix 
+    
+### use File::Spec::Functions;
+    이 모듈은 파일사양에 일반적인 작업 수행을 지원하기 위해 설계되어졌다
+    여러개의 경로와 파일이름을 하나의 경로로 결합시키거나 경로가 뿌리인지를 결정한다
+    
+    npath, catdir, catfile, curdir, devnull 
+    rootdir, tmpdir updir, no_upwards, case_tolerant
+    file_name_is_absolute, path, join, splitpath 
+    splitdir, catpath(), abs2rel, rel2abs()
+    
+### use File::stat;
+    #OOP I/F
+    	$stat->dev;           # or $stat->[0];
+    	$stat->ino;           # $stat->[1]; alias $stat->inode
+    	$stat->mode;          # or $stat->[2];
+    	$stat->nlink;         # or $stat->[3];
+    	$stat->uid;           # or $stat->[4];
+    	$stat->gid;           # or $stat->[5];
+    	$stat->rdev;          # or $stat->[6];
+    	$stat->size;          # or $stat->[7];
+    	$stat->atime;         # or $stat->[8];
+    	$stat->mtime;         # or $stat->[9];
+    	$stat->ctime;         # or $stat->[10];
+    	$stat->blksize;       # or $stat->[11];
+    	$stat->blocks;        # or $stat->[12];
