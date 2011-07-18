@@ -1,4 +1,4 @@
-#!/usr/bin/env perl 
+#!/usr/bin/env perl
 
 use 5.010;
 use strict;
@@ -21,19 +21,19 @@ my $long = 0;
 my $all = 0;
 
 GetOptions (
-    'l' => \$long,
-    'a' => \$all,
-);
+        'l' => \$long,
+        'a' => \$all,
+        );
 
 my @in_dirs;
 my @in_files;
 
-for (sort @ARGV)
+for ( sort @ARGV )
 {
-    (-d $_) ? push @in_dirs, $_ 
-  : (-f $_) ? push @in_files, $_
-  : warn encode_utf8("ls:${_}에 접근할 수 없습니다.: "), "$!\n";
-  ;
+      ( -d $_ ) ? push @in_dirs, $_
+    : ( -f $_ ) ? push @in_files, $_
+    : warn encode_utf8("ls:${_}에 접근할 수 없습니다.: "), "$!\n";
+    ;
 }
 push @in_dirs, ('.') unless @ARGV;
 
@@ -59,8 +59,8 @@ sub ls_file {
 
     return unless @files;
 
-    my $max_link = 0; #link count
-    my $max_size = 0; #size num
+    my $max_link = 0;
+    my $max_size = 0;
     for my $file ( @files ) {
         my $st = lstat($file);
         $max_link = $st->nlink if $st->nlink > $max_link;
@@ -86,32 +86,31 @@ sub ls_file {
 
             chomp( my $tz = read_file(catfile('/', 'etc', 'timezone')) );
             my $dt = DateTime->from_epoch(
-                    epoch     => $st->mtime,
-                    time_zone => $tz,
+                    epoch       => $st->mtime,
+                    time_zone   => $tz,
                     );
 
             my $type = (-l $file) ? 'l'
                      : (-d $file) ? 'd'
                      :              '-'
                      ;
-
             if ($type eq 'l') {
                 $printed_file .= ' -> ' . readlink $file;
             }
 
-            printf(
-                "%s%9s %${link_len}d %-${uid_len}s %-${gid_len}s %${size_len}d %s %02d:%02d %s\n",
-                $type,
-                get_mode($st->mode),
-                $st->nlink,
-                (getpwuid($st->uid))[0],
-                (getgrgid($st->gid))[0],
-                $st->size,
-                $dt->ymd,
-                $dt->hour,
-                $dt->minute,
-                $printed_file,
-            );
+            print(
+                    "%s%9s %${link_len}d %-${uid_len}s %-${gid_len}s %${size_len}d %s %02d:%02d %s\n",
+                    $type,
+                    get_mode($st->mode),
+                    $st->nlink,
+                    (getpwuid($st->uid))[0],
+                    (getgrgid($st->gid))[0],
+                    $st->size,
+                    $dt->ymd,
+                    $dt->hour,
+                    $dt->minute,
+                    $printed_file,
+                 );
         }
         else {
             say $printed_file;
@@ -129,10 +128,11 @@ sub ls_dir {
     else {
         @files = grep { /^[^.]/ } read_dir($dir);
     }
+
     my $blk_size = 0;
     for my $file ( @files ) {
         my $st = lstat( catfile($dir, $file) );
-        $blk_size += (int($st->size / 4096) + ($st->size % 4096 ? 1 : 0)) * (4096 / 1024) ;
+        $blk_size += (int($st->size / 4096) + ($st->size % 4096 ? 1 : 0)) * (4096 / 1024);
     }
     say encode_utf8("합계 $blk_size") if $long;
 
@@ -147,18 +147,18 @@ sub get_mode {
     my $o = ($mode & 00007);
 
     return sprintf(
-        '%s' x 9,
+                '%s' x 9,
 
-        ($u & 4) ? 'r' : '-',
-        ($u & 2) ? 'w' : '-',
-        ($u & 1) ? 'x' : '-',
+                ($u & 4) ? 'r' : '-',
+                ($u & 2) ? 'w' : '-',
+                ($u & 1) ? 'x' : '-',
 
-        ($g & 4) ?  'r' : '-',
-        ($g & 2) ?  'w' : '-',
-        ($g & 1) ?  'x' : '-',
+                ($g & 4) ? 'r' : '-',
+                ($g & 2) ? 'w' : '-',
+                ($g & 1) ? 'x' : '-',
 
-        ($o & 4) ?  'r' : '-',
-        ($o & 2) ?  'w' : '-',
-        ($o & 1) ?  'x' : '-',
-    );
+                ($o & 4) ? 'r' : '-',
+                ($o & 2) ? 'w' : '-',
+                ($o & 1) ? 'x' : '-',
+            );
 }
